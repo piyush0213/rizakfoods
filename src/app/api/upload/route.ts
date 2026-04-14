@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(request: Request) {
   try {
@@ -14,30 +20,27 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const originalName = file.name || 'image.jpg';
-    const sanitizedName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    const finalName = `${uniqueSuffix}-${sanitizedName}`;
+    // Upload to Cloudinary using a stream
+    const uploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'rizakfoods/products',
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result as UploadApiResponse);
+        }
+      );
+      
+      // End the stream with the buffer
+      uploadStream.end(buffer);
+    });
 
-    // Write to public/uploads/products directory
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'products');
-    
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (err: any) {
-      if (err.code !== 'EEXIST') throw err;
-    }
-
-    const filepath = path.join(uploadDir, finalName);
-    await writeFile(filepath, buffer);
-
-    const fileUrl = `/uploads/products/${finalName}`;
-
-    return NextResponse.json({ success: true, url: fileUrl });
+    return NextResponse.json({ success: true, url: uploadResult.secure_url });
   } catch (error: any) {
     console.error('Upload Error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to upload file', error: error.message },
+      { success: false, message: 'Failed to upload file', error: error.message || error },
       { status: 500 }
     );
   }
