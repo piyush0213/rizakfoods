@@ -6,7 +6,6 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
-    await dbConnect();
     const { email, password } = await request.json();
 
     if (!email || !password) {
@@ -16,9 +15,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Default admin fallback if DB is empty
+    // Default admin fallback if DB is empty - checked FIRST before DB connection
     if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
       const token = await createToken({ email, role: 'admin' });
+
       
       const response = NextResponse.json({ success: true, message: 'Login successful' });
       response.cookies.set({
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     }
 
     // Check against DB
+    await dbConnect();
     const admin = await Admin.findOne({ email });
     if (!admin) {
       return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
