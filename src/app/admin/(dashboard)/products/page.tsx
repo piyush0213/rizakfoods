@@ -46,9 +46,18 @@ export default function AdminProductsPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...newFiles]);
       
-      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      const validFiles = newFiles.filter(file => {
+          if (file.size > 4 * 1024 * 1024) { // 4MB Limit
+              alert(`File ${file.name} is too large. Vercel blocks images larger than 4.5MB. Please compress the image!`);
+              return false;
+          }
+          return true;
+      });
+
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+      
+      const newPreviews = validFiles.map(file => URL.createObjectURL(file));
       setPreviews(prev => [...prev, ...newPreviews]);
     }
   };
@@ -79,6 +88,14 @@ export default function AdminProductsPage() {
           body: fileData
         });
         
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text();
+          if (errText.includes('413') || errText.includes('Request Entity Too Large')) {
+             throw new Error(`File ${file.name} is too large. Vercel limits uploads to 4.5MB. Please compress the image!`);
+          }
+          throw new Error(`Upload failed: ${errText || uploadRes.statusText}`);
+        }
+
         const uploadData = await uploadRes.json();
         if (uploadData.success) {
           uploadedUrls.push(uploadData.url);
