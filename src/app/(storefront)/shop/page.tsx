@@ -1,4 +1,6 @@
 import React, { Suspense } from 'react';
+import dbConnect from '@/lib/mongodb';
+import Product from '@/models/Product';
 import { ProductGrid } from '@/components/shop/ProductGrid';
 import { AnimatedSection } from '@/components/ui/AnimatedSection';
 
@@ -7,7 +9,17 @@ export const metadata = {
   description: 'Explore our range of premium A2 Ghee, fresh milk, and paneer.',
 };
 
-export default function ShopPage() {
+export default async function ShopPage() {
+  let initialProducts = [];
+  try {
+    await dbConnect();
+    const queryResult = await Product.find({ isActive: true }).sort({ createdAt: -1 }).lean();
+    // Serialize MongoDB objects for Client Component transfer
+    initialProducts = JSON.parse(JSON.stringify(queryResult));
+  } catch (error) {
+    console.error("Failed to load initial products:", error);
+  }
+
   return (
     <div className="bg-[var(--color-brand-cream)] min-h-screen py-12">
       <div className="container mx-auto px-4 md:px-6">
@@ -22,7 +34,7 @@ export default function ShopPage() {
         </AnimatedSection>
 
         <Suspense fallback={<div className="py-24 text-center">Loading products...</div>}>
-          <ProductGrid />
+          <ProductGrid initialProducts={initialProducts} />
         </Suspense>
 
       </div>

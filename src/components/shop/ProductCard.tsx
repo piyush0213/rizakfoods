@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'framer-motion';
 import { Package } from 'lucide-react';
@@ -31,10 +32,12 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Image Container */}
         <div className="aspect-[4/5] w-full bg-gray-50 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center">
            {imageUrl ? (
-             <img 
+             <Image 
                src={imageUrl} 
                alt={product.name} 
-               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 z-10"
+               fill
+               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+               className="object-cover transition-transform duration-500 group-hover:scale-110 z-10"
              />
            ) : (
              <div className="flex flex-col items-center justify-center gap-2 text-gray-300 z-10">

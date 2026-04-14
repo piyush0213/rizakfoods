@@ -7,28 +7,38 @@ import { AnimatedSection } from '@/components/ui/AnimatedSection';
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
-export function ProductGrid() {
+interface ProductGridProps {
+  initialProducts?: any[];
+}
+
+export function ProductGrid({ initialProducts = [] }: ProductGridProps) {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
   
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState(
     initialCategory !== 'All' ? initialCategory.charAt(0).toUpperCase() + initialCategory.slice(1) : 'All'
   );
+
+  // Initialize products with initialProducts if viewing all, else filter them out initially if possible
+  const initProducts = initialProducts.length > 0 && activeFilter === 'All' 
+    ? initialProducts 
+    : (initialProducts.length > 0 ? initialProducts.filter(p => p.category.toLowerCase() === activeFilter.toLowerCase()) : []);
+    
+  const [products, setProducts] = useState<any[]>(initProducts);
+  // Set loading to false initially because we have SSR products
+  const [loading, setLoading] = useState(false);
+  const [isFirstRender, setIsFirstRender] = useState(true);
 
   useEffect(() => {
     async function fetchProducts() {
       try {
         setLoading(true);
-        // Simulating fetch or fetching from real API
         const res = await fetch(`/api/products${activeFilter !== 'All' ? `?category=${activeFilter.toLowerCase()}` : ''}`);
         const data = await res.json();
         
         if (data.success) {
           setProducts(data.data);
         } else {
-          // If no DB is connected yet, use dummy data Fallback for preview
           setProducts(getFallbackData(activeFilter));
         }
       } catch (error) {
@@ -36,6 +46,16 @@ export function ProductGrid() {
       } finally {
         setLoading(false);
       }
+    }
+
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      // If we don't have initial products (e.g. from SSR fail) or filter is applied locally, fetch.
+      // But actually we already filtered initProducts! So only fetch if initialProducts was completely empty.
+      if (initialProducts.length === 0) {
+        fetchProducts();
+      }
+      return; 
     }
 
     fetchProducts();
